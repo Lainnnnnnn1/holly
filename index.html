@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta name="application-version" content="20261125.3" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Midwinter</title>
+  <link rel="icon" href="data:," />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #030612;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #eef2ff;
+      overscroll-behavior: none;
+    }
+
+    #stage {
+      position: fixed;
+      inset: 0;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    #hud-anchor {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+      z-index: 20;
+      display: flex;
+      justify-content: flex-end;
+      padding: 0 20px;
+      pointer-events: none;
+    }
+
+    #dock {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(8, 12, 24, 0.52);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      opacity: 0.68;
+      transition: opacity 0.28s ease, background 0.28s ease;
+    }
+
+    #dock:hover,
+    #dock.editing {
+      opacity: 0.96;
+      background: rgba(10, 16, 32, 0.82);
+    }
+
+    .orbs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .orb {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      opacity: 0.78;
+      flex-shrink: 0;
+      transition: transform 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .orb:hover {
+      transform: scale(1.22);
+      opacity: 1;
+    }
+
+    .orb.active {
+      opacity: 1;
+      transform: scale(1.18);
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.88), 0 0 10px currentColor;
+    }
+
+    .sep {
+      width: 1px;
+      height: 14px;
+      background: rgba(255, 255, 255, 0.14);
+      flex-shrink: 0;
+    }
+
+    .ico-btn {
+      width: 26px;
+      height: 26px;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: rgba(235, 242, 255, 0.78);
+      font-size: 13px;
+      line-height: 26px;
+      text-align: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    }
+
+    .ico-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .ico-btn.on {
+      color: #fde68a;
+    }
+
+    #plaque-anchor {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+      z-index: 22;
+      display: flex;
+      justify-content: flex-end;
+      padding: 0 20px;
+      pointer-events: none;
+    }
+
+    #plaque-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 11px;
+      border-radius: 12px;
+      background: rgba(10, 16, 32, 0.86);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      opacity: 0;
+      transform: translateY(6px);
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    #plaque-box.open {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    #plaque-input {
+      width: 175px;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.24);
+      padding: 4px 2px;
+      color: #fff8e6;
+      font-size: 12px;
+      letter-spacing: 1.2px;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    #plaque-input:focus {
+      border-bottom-color: #fde68a;
+    }
+
+    #plaque-eye {
+      border: none;
+      background: transparent;
+      color: rgba(255, 240, 200, 0.85);
+      font-size: 13px;
+      cursor: pointer;
+      padding: 3px 5px;
+    }
+
+    #plaque-eye.muted {
+      opacity: 0.35;
+    }
+
+    @media (max-width: 680px) {
+      #hud-anchor {
+        justify-content: center;
+        padding: 0 10px;
+        bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+      }
+
+      #dock {
+        padding: 7px 10px;
+        gap: 6px;
+        opacity: 0.88;
+      }
+
+      .orbs {
+        gap: 6px;
+      }
+
+      .orb {
+        width: 13px;
+        height: 13px;
+      }
+
+      .ico-btn {
+        width: 26px;
+        height: 26px;
+        line-height: 26px;
+        font-size: 13px;
+      }
+
+      #plaque-anchor {
+        justify-content: center;
+        padding: 0 12px;
+        bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+      }
+    }
+
+    #webgl-error {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: #030612;
+      padding: 24px;
+      text-align: center;
+      color: #cbd5f0;
+      font-size: 14px;
+    }
+
+    #webgl-error.show {
+      display: flex;
+    }
+  
+    button:focus-visible { outline: 2px solid #e9d4a1; outline-offset: 4px; }
+    .orb { width: 28px; height: 32px; background-clip: content-box !important; padding: 8px 6px; border-radius: 50%; }
+    .orb.active { box-shadow: none; outline: 1px solid #d9c9a577; outline-offset: -2px; }
+    .ico-btn { width: 36px; height: 36px; line-height: 36px; font-size: 17px; }
+    #dock { gap: 5px; opacity: .82; background: rgba(9,15,22,.6); }
+    #plaque-input { font-size: 16px; width: 205px; }
+    #plaque-anchor { bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
+    #plaque-eye { min-width: 40px; min-height: 40px; }
+    #toast { position: fixed; bottom: 92px; left: 50%; transform: translateX(-50%); color: #e5d7bc; font-size: 12px; letter-spacing: .12em; pointer-events: none; opacity: 0; transition: opacity .3s; z-index: 30; white-space: nowrap; }
+    #toast.show { opacity: 1; }
+    @media(max-width:680px) {
+      #dock { width: 300px; justify-content: center; flex-wrap: wrap; gap: 2px 5px; padding: 5px 9px; border-radius: 25px; }
+      .orbs { width: 100%; justify-content: center; gap: 12px; }
+      .orb { width: 28px; height: 28px; }
+      .ico-btn { width: 40px; height: 40px; line-height: 40px; font-size: 17px; }
+      .sep { display: none; }
+      #plaque-anchor { bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+      #toast { bottom: 128px; }
+    }
+    @media(prefers-reduced-motion:reduce) { * { transition: none !important; } }
+  
+    #hud-anchor { justify-content: center; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }
+    #dock { width: auto; flex-wrap: nowrap; border-color: rgba(229,207,161,.18); background: rgba(12,24,25,.62); gap: 5px; padding: 5px 10px; border-radius: 28px; opacity: .92; }
+    .ico-btn { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; color: #d5cdb9; position: relative; }
+    .ico-btn svg,#plaque-eye svg { width: 20px; height: 20px; }
+    .ico-btn.on { color: #f4d49a; background: rgba(230,189,111,.10); }
+    .ico-btn:hover { background: rgba(230,189,111,.13); color: #fff1d4; transform: translateY(-2px); }
+    .ico-btn:active { transform: scale(.92); }
+    #plaque-anchor { justify-content: center; bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+    #plaque-box { border-color: rgba(229,207,161,.2); background: rgba(12,24,25,.92); }
+    #plaque-eye { display: inline-flex; align-items: center; justify-content: center; }
+    #toast { bottom: 98px; }
+    @media(max-width:680px){ #dock { gap: 3px; padding: 4px 7px; } #hud-anchor { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); } .ico-btn { width: 42px; height: 42px; } }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<!-- Tabler Icons: MIT License
+
+Copyright (c) 2020-2026 Paweł Kuna
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ -->
+<body>
+  <div id="stage" aria-label="可旋转的体素圣诞树"></div><div id="toast" role="status" aria-live="polite"></div>
+
+  <div id="plaque-anchor">
+    <div id="plaque-box" inert>
+      <input aria-label="树下祝福语" id="plaque-input" type="text" maxlength="24" value="MERRY CHRISTMAS" spellcheck="false" />
+      <button aria-label="显示或隐藏祝福语" aria-pressed="true" id="plaque-eye" type="button">
+<svg aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+  <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
+</svg>
+</button>
+    </div>
+  </div>
+
+  <div id="hud-anchor">
+    <div id="dock">
+      
+      <button class="ico-btn" id="music-btn" title="音乐" aria-label="音乐" type="button">
+<svg aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M3 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+  <path d="M13 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+  <path d="M9 17v-13h10v13" />
+  <path d="M9 8h10" />
+</svg>
+</button>
+      <button class="ico-btn" id="fw-btn" title="点亮星夜" aria-label="点亮星夜" type="button">
+<svg aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2m0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2m-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6" />
+</svg>
+</button>
+      <button class="ico-btn on" id="snow-btn" title="飘雪" aria-label="飘雪" type="button">
+<svg aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M10 4l2 1l2 -1" />
+  <path d="M12 2v6.5l3 1.72" />
+  <path d="M17.928 6.268l.134 2.232l1.866 1.232" />
+  <path d="M20.66 7l-5.629 3.25l.01 3.458" />
+  <path d="M19.928 14.268l-1.866 1.232l-.134 2.232" />
+  <path d="M20.66 17l-5.629 -3.25l-2.99 1.738" />
+  <path d="M14 20l-2 -1l-2 1" />
+  <path d="M12 22v-6.5l-3 -1.72" />
+  <path d="M6.072 17.732l-.134 -2.232l-1.866 -1.232" />
+  <path d="M3.34 17l5.629 -3.25l-.01 -3.458" />
+  <path d="M4.072 9.732l1.866 -1.232l.134 -2.232" />
+  <path d="M3.34 7l5.629 3.25l2.99 -1.738" />
+</svg>
+</button>
+      <button class="ico-btn" id="text-btn" title="编辑祝福语" aria-label="编辑祝福语" type="button">
+<svg aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+  <path d="M13.5 6.5l4 4" />
+</svg>
+</button>
+      <button class="ico-btn" id="snap-btn" title="保存画面" aria-label="保存画面" type="button">
+<svg aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2" />
+  <path d="M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+</svg>
+</button>
+      <button class="ico-btn" id="replay-btn" title="重播生成动画" aria-label="重播生成动画" type="button">
+<svg aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4.05 11a8 8 0 1 1 .5 4m-.5 5v-5h5" />
+</svg>
+</button>
+    </div>
+  </div>
+
+  <div id="webgl-error"><span id="err-msg">WebGL 不可用</span></div>
+
+  <script type="x-shader/x-vertex" id="voxel-vs">
+    attribute vec2 aCol;
+    attribute vec4 aData;
+    #ifdef MODE_DEER
+    attribute vec3 aPivot;
+    attribute vec3 aJoint;
+    #endif
+
+    uniform float uTime;
+    uniform float uT;
+    uniform float uScanY;
+    uniform float uAurora;
+    uniform float uPulseT;
+    uniform float uTreeH;
+    uniform float uReveal;
+    uniform float uRuneOn;
+    uniform float uStarFlash;
+    uniform float uGiftOpen[6];
+    uniform vec3 uPalette[8];
+
+    varying vec3 vNormal;
+    varying vec3 vLocal;
+    varying vec3 vBaseCol;
+    varying float vShade;
+    varying float vFlash;
+    varying vec3 vExtraGlow;
+    varying float vDepth;
+
+    float easeOutCubic(float x) {
+      float t = 1.0 - x;
+      return 1.0 - t * t * t;
+    }
+
+    float easeOutSoftBack(float x) {
+      float c1 = 0.72;
+      float c3 = c1 + 1.0;
+      float t = x - 1.0;
+      return 1.0 + c3 * t * t * t + c1 * t * t;
+    }
+
+    float easeSoftDrop(float x) {
+      if (x <= 0.0) return 0.0;
+      if (x >= 1.0) return 1.0;
+      float drop = easeOutCubic(min(x / 0.74, 1.0));
+      float bounce = sin(max(0.0, x - 0.74) / 0.26 * 3.14159265) * 0.045 * (1.0 - x);
+      return drop - bounce;
+    }
+
+    vec3 hue2rgb(float h) {
+      vec3 p = abs(fract(h + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
+      return clamp(p - 1.0, 0.0, 1.0);
+    }
+
+    vec3 getPal(int idx) {
+      vec3 c = uPalette[0];
+      for (int i = 1; i < 8; i++) {
+        if (i == idx) c = uPalette[i];
+      }
+      return c;
+    }
+
+    vec3 rotX(vec3 v, float a) {
+      float c = cos(a);
+      float s = sin(a);
+      return vec3(v.x, v.y * c - v.z * s, v.y * s + v.z * c);
+    }
+
+    void main() {
+      int slot = int(clamp(aCol.x + 0.5, 0.0, 7.0));
+      vBaseCol = getPal(slot);
+      vShade = aCol.y;
+      vLocal = position;
+      vFlash = 0.0;
+      vExtraGlow = vec3(0.0);
+
+      vec3 n = normal;
+      float sMul = 1.0;
+      vec4 localInstPos = instanceMatrix * vec4(position, 1.0);
+      vec3 center = vec3(instanceMatrix[3].xyz);
+
+      #ifdef MODE_TREE
+        float y = aData.x;
+        float p = clamp((uScanY - y) / 2.0, 0.0, 1.0);
+        float sp = smoothstep(0.0, 1.0, p);
+        sMul = p > 0.001 ? easeOutSoftBack(sp) : 0.0;
+        localInstPos = instanceMatrix * vec4(position * sMul, 1.0);
+        vec3 targetCenter = mix(vec3(center.x * 0.25, center.y, center.z * 0.25), center, easeOutCubic(sp));
+        localInstPos.xyz += (targetCenter - center);
+
+        vFlash = pow(1.0 - sp, 2.6) * step(0.001, p) * 0.92;
+
+        float angle = atan(center.z, center.x);
+        if (uAurora > 0.001) {
+          float aur = clamp(uAurora, 0.0, 1.0);
+          float front = aur < 0.45
+            ? (aur / 0.45) * uTreeH
+            : uTreeH * (1.0 - (aur - 0.45) / 0.55) + sin(angle * 2.0 + y * 0.6) * 1.4;
+          float wave = exp(-pow(y - front, 2.0) * 0.16);
+          vec3 aurCol = mix(getPal(6), getPal(7), 0.5 + 0.5 * sin(y * 0.35 + angle + uTime * 0.45));
+          vExtraGlow += aurCol * wave * 0.72 * (1.0 - smoothstep(0.86, 1.0, aur));
+
+          float band1 = pow(0.5 + 0.5 * sin(y * 0.5 - uTime * 0.9 + angle * 1.5), 7.0);
+          float aurIdle = smoothstep(0.6, 1.0, aur);
+          vExtraGlow += aurCol * band1 * 0.12 * aurIdle;
+        }
+
+        vec3 macroN = length(center.xz) > 0.01 ? normalize(vec3(center.x, 0.4 * length(center.xz), center.z)) : vec3(0.0, 1.0, 0.0);
+        n = normalize(mix(n, macroN, 0.38));
+
+        float dtPulse = uT - uPulseT;
+        if (dtPulse > 0.0 && dtPulse < 4.5) {
+          float dP = (uTreeH - y) - dtPulse * 14.0;
+          float pulse = exp(-dP * dP * 0.07) * exp(-dtPulse * 0.6);
+          vExtraGlow += mix(getPal(6), getPal(7), 0.5 + 0.5 * sin(y * 0.3)) * pulse * 1.35;
+        }
+      #endif
+
+      #ifdef MODE_ORN
+        float wakeT = aData.x;
+        float spiralS = aData.y;
+        float isProp = step(100.0, aData.z);
+        float phase = mod(aData.z, 100.0);
+        float oy = aData.w;
+        float scanP = smoothstep(0.0, 1.0, clamp((uScanY - oy) / 1.5, 0.0, 1.0));
+        float wp = clamp((uT - wakeT) / 0.6, 0.0, 1.0);
+        sMul = scanP > 0.001 ? easeOutSoftBack(scanP) * (1.0 + 0.2 * sin(wp * 3.14159265) * step(0.001, wp)) : 0.0;
+        localInstPos = instanceMatrix * vec4(position * sMul, 1.0);
+
+        float wakeFlash = (1.0 - wp) * (1.0 - wp) * step(0.001, wp);
+        float breath = 0.62 + 0.38 * sin(uTime * 1.5 + phase);
+        float stream = pow(0.5 + 0.5 * sin(spiralS * 18.0 - uTime * 2.2), 6.0) * 0.62;
+        float awake = step(wakeT, uT);
+        vFlash = wakeFlash * mix(0.82, 0.4, isProp) + pow(1.0 - scanP, 2.0) * step(0.001, scanP) * 0.55;
+        vec3 lightGlow = vBaseCol * (awake * (0.48 + breath * 0.42 + stream) + (1.0 - awake) * 0.06);
+        vec3 propGlow = vBaseCol * (awake * 0.16 + (1.0 - awake) * 0.04);
+        vExtraGlow += mix(lightGlow, propGlow, isProp);
+
+        float dtPulseO = uT - uPulseT;
+        if (dtPulseO > 0.0 && dtPulseO < 4.5) {
+          float dPO = (uTreeH - oy) - dtPulseO * 14.0;
+          float pulseO = exp(-dPO * dPO * 0.07) * exp(-dtPulseO * 0.6);
+          vExtraGlow += mix(vBaseCol, getPal(6), 0.55) * pulseO * 1.2;
+        }
+      #endif
+
+      #ifdef MODE_STAR
+        float shimmer = 1.0 + 0.14 * sin(uTime * 2.8 + aData.x * 4.0);
+        vExtraGlow += vBaseCol * (shimmer * 0.44 + uStarFlash * 1.1);
+      #endif
+
+      #ifdef MODE_RUNE
+        float rNorm = aData.x;
+        float angNorm = fract((aData.y + 3.14159265) / 6.2831853);
+        float progress = rNorm * 0.7 + angNorm * 0.3;
+        float vis = smoothstep(progress - 0.14, progress + 0.02, uReveal * 1.14) * step(0.001, uReveal);
+        sMul = vis > 0.001 ? easeOutCubic(vis) : 0.0;
+        localInstPos = instanceMatrix * vec4(position * sMul, 1.0);
+        float frontR = exp(-pow((uReveal * 1.14 - progress) * 10.0, 2.0)) * step(0.001, uReveal) * step(uReveal, 0.995);
+        vFlash = frontR * 0.85;
+        float textBoost = slot == 2 ? 0.42 : 0.26;
+        vExtraGlow += vBaseCol * (textBoost + 0.06 * sin(uTime * 1.6 + aData.y)) * uRuneOn;
+      #endif
+
+      #ifdef MODE_GIFT
+        float startT = aData.x;
+        float gp = clamp((uT - startT) / 0.65, 0.0, 1.0);
+        sMul = gp > 0.001 ? smoothstep(0.0, 0.28, gp) : 0.0;
+        localInstPos = instanceMatrix * vec4(position * sMul, 1.0);
+        localInstPos.y += 4.6 * (1.0 - easeSoftDrop(gp));
+        for(int i=0;i<6;i++){if(i==int(aData.y+0.5))localInstPos.y+=aData.z*uGiftOpen[i]*1.1;}
+      #endif
+
+      #ifdef MODE_WORLD
+        float wLight = aData.x;
+        if (wLight > 0.5) {
+          vExtraGlow += vBaseCol * (0.5 + 0.08 * sin(uTime * 2.2 + center.x));
+        }
+      #endif
+
+      #ifdef MODE_DEER
+        int part = int(aData.x + 0.5);
+        float isLower = aData.z;
+        float gTime = uTime * 4.4 + aData.w;
+        float pitch = 0.075 * cos(gTime);
+        vec3 pLocal = localInstPos.xyz;
+
+        if (part >= 2 && part <= 5) {
+          float pOff = (part == 2) ? 0.0 : (part == 3 ? 0.55 : (part == 4 ? 3.14159 : 3.69159));
+          float hipAng = 0.46 * sin(gTime + pOff);
+          float kneeAng = 0.48 * sin(gTime + pOff - 1.05) - 0.14;
+
+          if (isLower > 0.5) {
+            vec3 jRot = rotX(aJoint - aPivot, hipAng) + aPivot;
+            vec3 relLow = rotX(pLocal - aJoint, hipAng + kneeAng);
+            n = rotX(n, hipAng + kneeAng);
+            pLocal = jRot + relLow;
+          } else {
+            pLocal = rotX(pLocal - aPivot, hipAng) + aPivot;
+            n = rotX(n, hipAng);
+          }
+        } else if (part == 1 || part == 6) {
+          float headAng = (part == 6 ? -0.05 : -0.03) * sin(gTime + 0.35);
+          pLocal = rotX(pLocal - aPivot, headAng) + aPivot;
+          n = rotX(n, headAng);
+        } else if (part == 7) {
+          float tailAng = 0.16 * sin(gTime);
+          pLocal = rotX(pLocal - aPivot, tailAng) + aPivot;
+          n = rotX(n, tailAng);
+        }
+
+        pLocal = rotX(pLocal, pitch);
+        n = rotX(n, pitch);
+        pLocal.y += 0.1 * sin(gTime);
+        localInstPos.xyz = pLocal;
+        vExtraGlow += vBaseCol * (slot == 0 ? 0.14 : (slot == 2 ? 0.38 : 0.2 + 0.04 * sin(uTime * 3.5 + aData.y)));
+      #endif
+
+      mat3 instNormMat = mat3(instanceMatrix);
+      vNormal = normalize(mat3(modelMatrix) * (instNormMat * n));
+      vec4 worldPosition = modelMatrix * localInstPos;
+      vec4 mvPos = viewMatrix * worldPosition;
+      vDepth = -mvPos.z;
+      gl_Position = projectionMatrix * mvPos;
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="voxel-fs">
+    uniform float uEmissive;
+
+    varying vec3 vNormal;
+    varying vec3 vLocal;
+    varying vec3 vBaseCol;
+    varying float vShade;
+    varying float vFlash;
+    varying vec3 vExtraGlow;
+    varying float vDepth;
+
+    void main() {
+      vec3 base = vBaseCol * vShade;
+
+      vec3 N = normalize(vNormal);
+      vec3 L = normalize(vec3(-0.78, 0.54, 0.35));
+      vec3 R = normalize(vec3(0.75, 0.32, -0.45));
+      float diff = 0.08 + 0.92 * max(dot(N, L), 0.0);
+      float rim = 0.18 * max(dot(N, R), 0.0);
+
+      vec3 e = abs(vLocal) * 2.0;
+      float m1 = max(e.x, max(e.y, e.z));
+      float m2 = (e.x + e.y + e.z) - m1 - min(e.x, min(e.y, e.z));
+      float edge = smoothstep(0.82, 0.96, m2);
+
+      vec3 col = base * (diff + rim);
+      col += edge * 0.22 * base * (0.28 + 0.72 * diff);
+      col += base * uEmissive;
+      col += vExtraGlow;
+      col += vec3(1.0, 0.97, 0.92) * vFlash;
+
+      float fogFactor = 1.0 - exp(-pow(vDepth * 0.0055, 2.0));
+      vec3 fogCol = vec3(0.012, 0.020, 0.048);
+      col = mix(col, fogCol, clamp(fogFactor, 0.0, 0.85));
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  </script>
+
+  <script type="x-shader/x-vertex" id="skydome-vs">
+    varying vec3 vDir;
+
+    void main() {
+      vDir = normalize(position);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="skydome-fs">
+    uniform vec3 uTopCol;
+    uniform vec3 uHorizonCol;
+    uniform vec3 uGlowCol;
+    uniform float uTime;
+
+    varying vec3 vDir;
+
+    void main() {
+      float h = clamp(vDir.y, 0.0, 1.0);
+      vec3 col = mix(uHorizonCol, uTopCol, pow(h, 0.55));
+
+      float aurWave = 0.22 + 0.08 * sin(vDir.x * 3.8 + uTime * 0.22) + 0.04 * cos(vDir.z * 5.0 - uTime * 0.18);
+      float ribbon = exp(-pow((h - aurWave) * 7.5, 2.0));
+      float shimmer = 0.55 + 0.45 * sin(vDir.x * 7.0 - vDir.z * 4.5 + uTime * 0.4);
+      col += uGlowCol * ribbon * shimmer * 0.13;
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  </script>
+
+  <script type="x-shader/x-vertex" id="icefloor-vs">
+    varying vec3 vWorldPos;
+
+    void main() {
+      vec4 wp = modelMatrix * vec4(position, 1.0);
+      vWorldPos = wp.xyz;
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="icefloor-fs">
+    uniform vec3 uTreeGlow;
+    uniform vec3 uRuneGlow;
+    uniform float uRuneOn;
+    uniform float uTime;
+
+    varying vec3 vWorldPos;
+
+    void main() {
+      float dist = length(vWorldPos.xz);
+
+      vec3 col = vec3(0.012, 0.023, 0.025);
+      float centerGlow = exp(-dist * dist * 0.015) * (0.28 + 0.72 * uRuneOn);
+      float runeHalo = exp(-pow(dist - 6.6, 2.0) * 0.16) * uRuneOn;
+      float railHalo = exp(-pow(dist - 11.4, 2.0) * 1.4) * (0.25 + 0.5 * uRuneOn);
+
+      col += uTreeGlow * centerGlow * 0.045;
+      col += uRuneGlow * runeHalo * 0.025;
+      col += uRuneGlow * railHalo * 0.012;
+
+      vec2 grid = vWorldPos.xz * 7.8;
+      vec2 cid = floor(grid);
+      vec2 fuv = fract(grid) - 0.5;
+      float rnd = fract(sin(dot(cid, vec2(127.1, 311.7))) * 43758.5453);
+      float glint = step(0.968, rnd) * smoothstep(0.22, 0.0, length(fuv)) * (0.4 + 0.6 * sin(uTime * 2.2 + rnd * 60.0));
+      col += mix(uRuneGlow, vec3(0.75, 0.86, 1.0), 0.5) * glint * 0.24 * (1.0 - smoothstep(11.0, 24.0, dist));
+
+      // 透明渐变消融边缘，彻底消除生硬的水平切割线
+      float alpha = 1.0 - smoothstep(13.5, 29.0, dist);
+      if (alpha <= 0.002) discard;
+
+      gl_FragColor = vec4(col * alpha, alpha);
+    }
+  </script>
+
+  <script type="x-shader/x-vertex" id="particle-vs">
+    attribute vec3 aColor;
+    attribute float aSize;
+    attribute float aAlpha;
+
+    varying vec3 vColor;
+    varying float vAlpha;
+
+    void main() {
+      vColor = aColor;
+      vAlpha = aAlpha;
+      vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = aSize * 320.0 / max(1.0, -mvPos.z);
+      gl_Position = projectionMatrix * mvPos;
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="particle-fs">
+    varying vec3 vColor;
+    varying float vAlpha;
+
+    void main() {
+      if (vAlpha <= 0.002) discard;
+      float d = length(gl_PointCoord - vec2(0.5));
+      if (d > 0.5) discard;
+      float glow = pow(1.0 - d * 2.0, 1.85);
+      gl_FragColor = vec4(vColor * (1.65 + glow * 1.15), glow * vAlpha);
+    }
+  </script>
+
+  <script type="x-shader/x-vertex" id="updraft-vs">
+    attribute vec3 aSeed;
+    uniform float uTime;
+    uniform float uRuneOn;
+
+    varying float vAlpha;
+
+    void main() {
+      vec3 pos = position;
+      float y = mod(aSeed.x * 14.5 + uTime * (0.75 + aSeed.y * 0.8), 14.5);
+      pos.y = y;
+      float sw = uTime * 0.45 + aSeed.z;
+      float rx = pos.x * cos(sw * 0.16) - pos.z * sin(sw * 0.16);
+      float rz = pos.x * sin(sw * 0.16) + pos.z * cos(sw * 0.16);
+      pos.x = rx + sin(uTime * 1.3 + aSeed.z) * 0.35;
+      pos.z = rz + cos(uTime * 1.1 + aSeed.z) * 0.35;
+      float fade = sin((y / 14.5) * 3.14159265);
+      vAlpha = fade * uRuneOn * (0.48 + 0.48 * sin(uTime * 2.4 + aSeed.z));
+      vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
+      gl_PointSize = (0.28 + 0.24 * aSeed.y) * 265.0 / max(1.0, -mvPos.z);
+      gl_Position = projectionMatrix * mvPos;
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="updraft-fs">
+    uniform vec3 uColor;
+    varying float vAlpha;
+
+    void main() {
+      if (vAlpha <= 0.002) discard;
+      float d = length(gl_PointCoord - vec2(0.5));
+      if (d > 0.5) discard;
+      float glow = pow(1.0 - d * 2.0, 2.0);
+      gl_FragColor = vec4(uColor * 1.25, glow * vAlpha * 0.65);
+    }
+  </script>
+
+  <script type="x-shader/x-vertex" id="lantern-vs">
+    attribute vec3 aSeed;
+    uniform float uTime;
+
+    varying float vAlpha;
+    varying float vWarm;
+
+    void main() {
+      vec3 pos = position;
+      float h = mod(aSeed.x * 28.0 + uTime * (0.45 + aSeed.y * 0.35), 28.0);
+      pos.y = 1.8 + h;
+      pos.x += sin(uTime * 0.42 + aSeed.z) * 0.9;
+      pos.z += cos(uTime * 0.38 + aSeed.z * 1.4) * 0.9;
+      float fade = smoothstep(0.0, 4.0, h) * (1.0 - smoothstep(22.0, 28.0, h));
+      vAlpha = fade * (0.55 + 0.35 * sin(uTime * 1.9 + aSeed.z));
+      vWarm = aSeed.y;
+      vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
+      gl_PointSize = (0.42 + 0.35 * aSeed.y) * 320.0 / max(1.0, -mvPos.z);
+      gl_Position = projectionMatrix * mvPos;
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="lantern-fs">
+    varying float vAlpha;
+    varying float vWarm;
+
+    void main() {
+      if (vAlpha <= 0.002) discard;
+      vec2 p = gl_PointCoord - vec2(0.5);
+      p.x *= 1.22;
+      float d = length(p);
+      if (d > 0.5) discard;
+      float core = pow(1.0 - d * 2.0, 2.2);
+      vec3 col = mix(vec3(1.0, 0.72, 0.32), vec3(1.0, 0.9, 0.65), vWarm);
+      gl_FragColor = vec4(col * 1.25, core * vAlpha * 0.85);
+    }
+  </script>
+
+  <script type="x-shader/x-vertex" id="sky-vs">
+    attribute vec3 aSeed;
+    uniform float uTime;
+
+    varying float vAlpha;
+    varying float vHue;
+
+    void main() {
+      vAlpha = 0.25 + 0.75 * (0.5 + 0.5 * sin(uTime * (0.7 + aSeed.x * 1.8) + aSeed.y * 6.283));
+      vHue = aSeed.x;
+      vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = (0.75 + aSeed.z * 1.55) * 145.0 / max(1.0, -mvPos.z);
+      gl_Position = projectionMatrix * mvPos;
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="sky-fs">
+    varying float vAlpha;
+    varying float vHue;
+
+    void main() {
+      float d = length(gl_PointCoord - vec2(0.5));
+      if (d > 0.5) discard;
+      float glow = pow(1.0 - d * 2.0, 2.1);
+      vec3 tint = mix(vec3(0.76, 0.88, 1.0), vec3(1.0, 0.94, 0.8), vHue);
+      gl_FragColor = vec4(tint * 1.05, glow * vAlpha);
+    }
+  </script>
+
+  <script type="x-shader/x-vertex" id="snow-vs">
+    attribute vec3 aSeed;
+    uniform float uTime;
+
+    varying float vAlpha;
+
+    void main() {
+      vec3 pos = position;
+      float fall = mod(aSeed.x * 36.0 - uTime * (0.95 + aSeed.y * 0.95), 36.0);
+      pos.y = fall;
+      pos.x += sin(uTime * 0.65 + aSeed.z) * 1.1;
+      pos.z += cos(uTime * 0.55 + aSeed.z * 1.3) * 1.1;
+      float fadeFloor = smoothstep(0.0, 3.0, fall);
+      float fadeTop = 1.0 - smoothstep(30.0, 36.0, fall);
+      vAlpha = fadeFloor * fadeTop * (0.32 + 0.4 * aSeed.y);
+      vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
+      gl_PointSize = (0.24 + 0.24 * aSeed.y) * 245.0 / max(1.0, -mvPos.z);
+      gl_Position = projectionMatrix * mvPos;
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="snow-fs">
+    varying float vAlpha;
+
+    void main() {
+      if (vAlpha <= 0.002) discard;
+      float d = length(gl_PointCoord - vec2(0.5));
+      if (d > 0.5) discard;
+      float soft = pow(1.0 - d * 2.0, 1.8);
+      gl_FragColor = vec4(vec3(0.95, 0.98, 1.0), soft * vAlpha);
+    }
+  </script>
+
+  <script type="x-shader/x-vertex" id="scanring-vs">
+    varying vec3 vLocal;
+    varying vec2 vUv;
+
+    void main() {
+      vLocal = position;
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="scanring-fs">
+    uniform float uTime;
+    uniform float uOpacity;
+    uniform vec3 uChannel;
+
+    varying vec3 vLocal;
+    varying vec2 vUv;
+
+    vec3 hue2rgb(float h) {
+      vec3 p = abs(fract(h + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
+      return clamp(p - 1.0, 0.0, 1.0);
+    }
+
+    void main() {
+      float angle = atan(vLocal.y, vLocal.x);
+      vec3 rainbow = hue2rgb(angle / 6.2831853 + uTime * 0.3);
+      vec3 col = mix(vec3(1.0), rainbow, 0.16) * uChannel * 1.45;
+      gl_FragColor = vec4(col, uOpacity);
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="scancurtain-fs">
+    uniform float uTime;
+    uniform float uOpacity;
+
+    varying vec3 vLocal;
+    varying vec2 vUv;
+
+    vec3 hue2rgb(float h) {
+      vec3 p = abs(fract(h + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
+      return clamp(p - 1.0, 0.0, 1.0);
+    }
+
+    void main() {
+      float angle = atan(vLocal.z, vLocal.x);
+      vec3 rainbow = hue2rgb(angle / 6.2831853 + uTime * 0.3);
+      float vFade = sin(vUv.y * 3.14159265);
+      gl_FragColor = vec4(mix(vec3(1.0, 0.82, 0.56), rainbow, 0.18), vFade * uOpacity * 0.24);
+    }
+  </script>
+
+  <script type="x-shader/x-vertex" id="flare-vs">
+    varying vec2 vUv;
+
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="flare-fs">
+    uniform vec3 uColor;
+    uniform float uIntensity;
+
+    varying vec2 vUv;
+
+    void main() {
+      vec2 p = (vUv - 0.5) * 2.0;
+      float hRay = exp(-abs(p.y) * 120.0) * exp(-abs(p.x) * 2.3);
+      float vRay = exp(-abs(p.x) * 120.0) * exp(-abs(p.y) * 2.3);
+      vec2 d = vec2(p.x + p.y, p.x - p.y) * 0.70710678;
+      float dRay = (exp(-abs(d.x) * 85.0) * exp(-abs(d.y) * 4.5) + exp(-abs(d.y) * 85.0) * exp(-abs(d.x) * 4.5)) * 0.22;
+      float r = length(p);
+      float core = exp(-r * 15.0) * 0.65 + exp(-r * 4.2) * 0.1;
+      float lum = (hRay + vRay + dRay + core) * uIntensity * 0.62;
+      gl_FragColor = vec4(uColor * lum, clamp(lum, 0.0, 1.0));
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="shockwave-fs">
+    uniform vec3 uColor;
+    uniform float uOpacity;
+
+    varying vec2 vUv;
+
+    void main() {
+      gl_FragColor = vec4(uColor * 1.6, uOpacity);
+    }
+  </script>
+
+  <script type="x-shader/x-vertex" id="final-vs">
+    varying vec2 vUv;
+
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="final-fs">
+    uniform sampler2D tDiffuse;
+    uniform float uTime;
+
+    varying vec2 vUv;
+
+    void main() {
+      vec2 d = vUv - 0.5;
+      float dist = length(d);
+      vec2 dir = dist > 0.0001 ? d / dist : vec2(0.0);
+      vec2 off = dir * (0.00015 * dist);
+
+      float r = texture2D(tDiffuse, vUv + off).r;
+      float g = texture2D(tDiffuse, vUv).g;
+      float b = texture2D(tDiffuse, vUv - off).b;
+      vec3 col = vec3(r, g, b);
+
+      float vig = 1.0 - 0.24 * smoothstep(0.45, 1.15, dist * 1.2);
+      float noise = (fract(sin(dot(vUv * (uTime + 1.0), vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.0015;
+
+      col = col * vig + noise;
+      gl_FragColor = vec4(max(col, 0.0), 1.0);
+    }
+  </script>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const toast = message => {
+      $('toast').textContent = message;
+      $('toast').classList.add('show');
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => $('toast').classList.remove('show'), 2200);
+    };
+    const fail = error => {
+      console.error(error);
+      $('err-msg').textContent = '星夜暂时未能加载。请检查网络后刷新，或换用支持 WebGL 的浏览器。';
+      $('webgl-error').classList.add('show');
+    };
+    const loadingTimer = setTimeout(() => toast('正在点亮星夜…'), 1800);
+    try {
+      const [THREE, {OrbitControls}, {EffectComposer}, {RenderPass}, {UnrealBloomPass}, {ShaderPass}, {OutputPass}] = await Promise.all([
+        import('three'), import('three/addons/controls/OrbitControls.js'),
+        import('three/addons/postprocessing/EffectComposer.js'), import('three/addons/postprocessing/RenderPass.js'),
+        import('three/addons/postprocessing/UnrealBloomPass.js'), import('three/addons/postprocessing/ShaderPass.js'),
+        import('three/addons/postprocessing/OutputPass.js')
+      ]);
+      clearTimeout(loadingTimer);
+      const TAU = Math.PI * 2, H = 17.6;
+      const clamp = (x,a=0,b=1) => Math.min(b,Math.max(a,x));
+      const smooth = x => { x=clamp(x); return x*x*(3-2*x); };
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const mobile = matchMedia('(max-width: 680px)').matches;
+      const params = new URLSearchParams(location.search);
+      const paused = params.get('pause') === '1';
+      const initialTime = Number(params.get('t'));
+      let t = params.has('t') && Number.isFinite(initialTime) ? clamp(initialTime,0,86400) : reduced ? 12 : 0;
+      let worldTime = t, lastFrame = performance.now(), lastInteraction = lastFrame;
+      let snowOn = true, plaqueOn = true;
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color('#030612');
+      const camera = new THREE.PerspectiveCamera(43,innerWidth/innerHeight,.1,240);
+      const renderer = new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance',preserveDrawingBuffer:true});
+      renderer.setPixelRatio(Math.min(devicePixelRatio,mobile?1.35:1.75));
+      renderer.setSize(innerWidth,innerHeight);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.03;
+      $('stage').appendChild(renderer.domElement);
+      renderer.domElement.setAttribute('aria-label','圣诞星夜，拖动旋转，点击星星点亮星尘，点击礼盒打开惊喜');
+      renderer.domElement.addEventListener('webglcontextlost',event=>{event.preventDefault();fail(new Error('WebGL context lost'));});
+      renderer.domElement.addEventListener('webglcontextrestored',()=>location.reload());
+      const controls = new OrbitControls(camera,renderer.domElement);
+      controls.enableDamping = true; controls.dampingFactor=.055; controls.enablePan=false;
+      controls.minPolarAngle=.45; controls.maxPolarAngle=1.48;
+      controls.minDistance=22; controls.maxDistance=65; controls.autoRotateSpeed=.32;
+      controls.target.set(0,8.2,0);
+      function frameCamera() {
+        const aspect=innerWidth/innerHeight;
+        camera.aspect=aspect;
+        const distance=Math.max(36,25/Math.max(.5,aspect));
+        camera.position.set(0,8.2+distance*.25,distance);
+        camera.updateProjectionMatrix(); controls.update();
+      }
+      frameCamera();
+      controls.addEventListener('start',()=>{lastInteraction=performance.now();controls.autoRotate=false;});
+      controls.addEventListener('end',()=>{lastInteraction=performance.now();});
+      const composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene,camera));
+      const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),.38,.32,1.12);
+      composer.addPass(bloom);
+      const finishing = new ShaderPass({uniforms:{tDiffuse:{value:null},uTime:{value:0}},vertexShader:$('final-vs').textContent,fragmentShader:$('final-fs').textContent});
+      composer.addPass(finishing); composer.addPass(new OutputPass());
+      const themeColors=['#34724f','#67462e','#e1bc78','#b44350','#ede5cd','#e6c28a','#f0d399','#8abb91'];
+      const palette=themeColors.map(c=>new THREE.Color(c));
+      const paletteTarget=palette.map(c=>c.clone());
+      const shared = {
+        uGiftOpen:{value:new Float32Array(6)},uTime:{value:0},uT:{value:t},uScanY:{value:-2},uAurora:{value:0},uPulseT:{value:-100},
+        uTreeH:{value:H},uReveal:{value:0},uRuneOn:{value:0},uStarFlash:{value:0},uPalette:{value:palette}
+      };
+      let rngState=84719;
+      const random=()=>{rngState=(Math.imul(rngState,1664525)+1013904223)>>>0;return rngState/4294967296;};
+      const dummy = new THREE.Object3D();
+      function voxelMaterial(mode,pal=palette,emissive=.10) {
+        return new THREE.ShaderMaterial({defines:{['MODE_'+mode]:1},uniforms:{...shared,uPalette:{value:pal},uEmissive:{value:emissive}},vertexShader:$('voxel-vs').textContent,fragmentShader:$('voxel-fs').textContent});
+      }
+      function addVoxel(list,x,y,z,size,slot=0,shade=1,data=[y,0,0,0],pivot=[0,0,0],joint=[0,0,0]) {
+        list.push({x,y,z,size,slot,shade,data,pivot,joint});
+      }
+      function voxels(list,mode,pal=palette,emissive=.10,parent=scene) {
+        const geo=new THREE.BoxGeometry(1,1,1);
+        const col=new Float32Array(list.length*2),data=new Float32Array(list.length*4);
+        const pivot=new Float32Array(list.length*3),joint=new Float32Array(list.length*3);
+        const mesh=new THREE.InstancedMesh(geo,voxelMaterial(mode,pal,emissive),list.length);
+        list.forEach((v,i)=>{
+          dummy.position.set(v.x,v.y,v.z);
+          const size=Array.isArray(v.size)?v.size:[v.size,v.size,v.size];
+          dummy.scale.set(...size); dummy.rotation.set(0,0,0);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);
+          col.set([v.slot,v.shade],i*2);data.set(v.data,i*4);pivot.set(v.pivot,i*3);joint.set(v.joint,i*3);
+        });
+        geo.setAttribute('aCol',new THREE.InstancedBufferAttribute(col,2));
+        geo.setAttribute('aData',new THREE.InstancedBufferAttribute(data,4));
+        if(mode==='DEER') {geo.setAttribute('aPivot',new THREE.InstancedBufferAttribute(pivot,3));geo.setAttribute('aJoint',new THREE.InstancedBufferAttribute(joint,3));}
+        mesh.frustumCulled=false;parent.add(mesh);return mesh;
+      }
+      function line(list,a,b,step,size,slot,data) {
+        const n=Math.max(1,Math.ceil(Math.hypot(...a.map((v,i)=>v-b[i]))/step));
+        for(let i=0;i<=n;i++){const p=a.map((v,j)=>v+(b[j]-v)*i/n);addVoxel(list,...p,size,slot,1,data||[p[1],0,0,0]);}
+      }
+      const tree=[];
+      // Seven overlapping branch skirts retain gaps and a clearly exposed trunk.
+      for(let y=.25;y<5.5;y+=.22)for(let x=-.59;x<=.59;x+=.22)for(let z=-.59;z<=.59;z+=.22){
+        if(x*x+z*z<.36)addVoxel(tree,x,y,z,.195,1,.72+random()*.46);
+      }
+      const tiers=[];
+      for(let k=0;k<7;k++){
+        const base=3.55+k*1.82, height=3.1-k*.08, radius=4.9-k*.64;
+        tiers.push({base,height,radius});
+        for(let y=0;y<height;y+=.23){
+          const q=y/height, r=radius*Math.pow(1-q,1.23);
+          for(let x=-r;x<=r;x+=.235)for(let z=-r;z<=r;z+=.235){
+            const rr=Math.hypot(x,z), angle=Math.atan2(z,x);
+            const edge=r*(1+.055*Math.sin(angle*7+k*.65)+.025*Math.sin(angle*13));
+            if(rr>edge||rr<Math.max(.3,edge-.7)&&random()>.13||random()<.09)continue;
+            const shade=(.72+random()*.4)*(q<.13?.64:1);
+            const snow=q>.22&&random()<.035;
+            addVoxel(tree,x,base+y,z,.15+random()*.022,snow?4:0,snow?.75:shade);
+          }
+        }
+      }
+      const treeMesh=voxels(tree,'TREE',palette,.21);treeMesh.name='tree';
+      function branchRadius(y) {
+        let radius=.18;
+        for(const tier of tiers){const q=(y-tier.base)/tier.height;if(q>=0&&q<1)radius=Math.max(radius,tier.radius*Math.pow(1-q,1.23));}
+        return radius;
+      }
+      const ornaments=[];
+      for(let i=0;i<530;i++){
+        const f=i/529,y=3.65+f*12.8,a=f*TAU*6.6,r=branchRadius(y)+.14;
+        addVoxel(ornaments,Math.cos(a)*r,y,Math.sin(a)*r,i%5===0?.15:.065,i%5===0?2:5,.95,[5.2+f*2.7,f,random()*6,y]);
+      }
+      // Small faceted baubles, candy canes and bells rather than oversized neon ornaments.
+      for(let i=0;i<64;i++){
+        const y=4+random()*11.8,a=random()*TAU,r=branchRadius(y)+.16;
+        const x=Math.cos(a)*r,z=Math.sin(a)*r, slot=i%3===0?2:3;
+        for(let yy=-.18;yy<=.18;yy+=.1)for(let xx=-.18;xx<=.18;xx+=.1)for(let zz=-.18;zz<=.18;zz+=.1){
+          if(xx*xx+yy*yy+zz*zz<.037)addVoxel(ornaments,x+xx,y+yy,z+zz,.085,slot,1,[5.4+y*.12,0,100,y]);
+        }
+        addVoxel(ornaments,x,y+.22,z,.075,2,1,[5.4+y*.12,0,100,y]);
+      }
+      for(let i=0;i<15;i++){
+        const y=4.3+random()*10.7,a=random()*TAU,r=branchRadius(y)+.25,x=Math.cos(a)*r,z=Math.sin(a)*r;
+        for(let j=0;j<12;j++){
+          const q=j<7?0:(j-7)/4*Math.PI;
+          const xx=j<7?0:.12-.12*Math.cos(q), yy=j<7?j*.075:.45+.12*Math.sin(q);
+          addVoxel(ornaments,x+xx,y+yy,z,.075,j%3===0?3:4,1,[5.4+y*.12,0,100,y]);
+        }
+      }
+      voxels(ornaments,'ORN',palette,.12);
+      const starGroup=new THREE.Group();starGroup.position.y=H-.1;scene.add(starGroup);
+      const starVertices=[],starColors=[];
+      const outline=Array.from({length:16},(_,i)=>{
+        const angle=Math.PI/2+i*Math.PI/8,r=i%2===0?(i%4===0?(i%8===0?1.18:.9):.62):.19;
+        return new THREE.Vector3(Math.cos(angle)*r,Math.sin(angle)*r,0);
+      });
+      for(const side of [1,-1])for(let i=0;i<16;i++){
+        const a=outline[i],b=outline[(i+1)%16],center=new THREE.Vector3(0,0,side*.22);
+        const tri=side===1?[center,a,b]:[center,b,a];
+        for(const v of tri)starVertices.push(v.x,v.y,v.z);
+        const shade=i%2===0?1:.74;
+        for(let j=0;j<3;j++)starColors.push(shade,shade*.96,shade*.86);
+      }
+      const starGeometry=new THREE.BufferGeometry();
+      starGeometry.setAttribute('position',new THREE.Float32BufferAttribute(starVertices,3));
+      starGeometry.setAttribute('color',new THREE.Float32BufferAttribute(starColors,3));starGeometry.computeVertexNormals();
+      const starMaterial=new THREE.MeshStandardMaterial({color:'#fff0c9',emissive:'#f8cd79',emissiveIntensity:.8,metalness:.12,roughness:.23,vertexColors:true,flatShading:true});
+      const starJewel=new THREE.Mesh(starGeometry,starMaterial);starGroup.add(starJewel);
+      scene.add(new THREE.HemisphereLight('#dbe7e4','#26333b',1.4));
+      const keyLight=new THREE.DirectionalLight('#ffe5b6',2.7);keyLight.position.set(-8,20,15);scene.add(keyLight);
+      const edgeLight=new THREE.DirectionalLight('#bacbd5',1);edgeLight.position.set(8,10,-5);scene.add(edgeLight);
+      function shaderMesh(geometry,vs,fs,uniforms,options={}) {
+        return new THREE.Mesh(geometry,new THREE.ShaderMaterial({uniforms,vertexShader:$(vs).textContent,fragmentShader:$(fs).textContent,...options}));
+      }
+      const flare=shaderMesh(new THREE.PlaneGeometry(6.2,6.2),'flare-vs','flare-fs',{uColor:{value:palette[2]},uIntensity:{value:.62}},{transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
+      starGroup.add(flare);
+      const starDust=[];
+      for(let i=0;i<100;i++){
+        const a=i/100*TAU,r=1.1+random()*.45;
+        addVoxel(starDust,Math.cos(a)*r,Math.sin(a)*r*.42,Math.sin(a)*.48,.025+random()*.022,2,1.1,[0,0,0,0]);
+      }
+      const starOrbit=voxels(starDust,'STAR',palette,.7,starGroup);starOrbit.rotation.z=.35;
+      const sky=shaderMesh(new THREE.SphereGeometry(110,24,16),'skydome-vs','skydome-fs',{uTopCol:{value:new THREE.Color('#061018')},uHorizonCol:{value:new THREE.Color('#152924')},uGlowCol:{value:new THREE.Color('#7a765a')},uTime:shared.uTime},{side:THREE.BackSide,depthWrite:false});
+      scene.add(sky);
+      const floor=shaderMesh(new THREE.PlaneGeometry(64,64),'icefloor-vs','icefloor-fs',{uTreeGlow:{value:palette[0]},uRuneGlow:{value:palette[2]},uRuneOn:shared.uRuneOn,uTime:shared.uTime},{transparent:true,depthWrite:false});
+      floor.rotation.x=-Math.PI/2; floor.position.y=-.12;scene.add(floor);
+      const rings=[];
+      for(let layer=0;layer<3;layer++){
+        const list=[],radius=[6.1,7.0,8.4][layer];
+        for(let i=0;i<Math.ceil(radius*TAU/.12);i++){
+          const a=i*.12/radius;
+          addVoxel(list,Math.cos(a)*radius,.04,Math.sin(a)*radius,.052,2,.65,[radius/9,a,0,0]);
+        }
+        for(let i=0;i<48;i++){
+          const a=i/48*TAU,len=i%4===0?.36:.12;
+          for(let r=radius-len;r<radius;r+=.08)addVoxel(list,Math.cos(a)*r,.04,Math.sin(a)*r,.055,2,.72,[r/9,a,0,0]);
+        }
+        if(layer===0)for(let i=0;i<6;i++){
+          const a=i/6*TAU,b=(i+2)/6*TAU;
+          const from=[Math.cos(a)*5.6,.04,Math.sin(a)*5.6],to=[Math.cos(b)*5.6,.04,Math.sin(b)*5.6];
+          const n=100;for(let j=0;j<n;j++){const p=from.map((v,k)=>v+(to[k]-v)*j/n);addVoxel(list,...p,.04,2,.5,[Math.hypot(p[0],p[2])/9,Math.atan2(p[2],p[0]),0,0]);}
+        }
+        rings.push(voxels(list,'RUNE',palette,.07));
+      }
+      const scan=shaderMesh(new THREE.RingGeometry(1,1.025,160),'scanring-vs','scanring-fs',{uTime:shared.uTime,uOpacity:{value:0},uChannel:{value:new THREE.Color('#d5bd96')}},{transparent:true,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});
+      scan.rotation.x=-Math.PI/2;scene.add(scan);
+      const gifts=[],giftCenters=[],giftUntil=new Float32Array(6);
+      for(let k=0;k<6;k++){
+        const a=[.65,1.3,2,2.65,3.9,5.3][k],r=2.2+(k%2)*.85,s=.68+(k%3)*.18;
+        const cx=Math.cos(a)*r,cz=Math.sin(a)*r;giftCenters.push(new THREE.Vector3(cx,s*.5,cz));
+        for(let y=.16;y<s;y+=.16)for(let x=-s/2;x<=s/2;x+=.16)for(let z=-s/2;z<=s/2;z+=.16){
+          if(Math.abs(x)<s/2-.19&&Math.abs(z)<s/2-.19&&y<s-.19)continue;
+          addVoxel(gifts,cx+x,y,cz+z,.145,Math.abs(x)<.10||Math.abs(z)<.10?2:k%2?3:0,.9,[8.5+k*.16+y*.13,k,y>s-.20?1:0,0]);
+        }
+        for(let j=0;j<40;j++){
+          const a=j/40*TAU;
+          addVoxel(gifts,cx+Math.sin(a)*.32,s+.06+Math.abs(Math.sin(a*2))*.12,cz+Math.sin(a*2)*.14,.065,2,1,[8.5+k*.16+s*.13,k,1,0]);
+        }
+      }
+      voxels(gifts,'GIFT',palette,.12);
+      const worldPal=['#25463e','#57493b','#c7a46e','#92504d','#aabdc1','#7b8f8b','#ddb877','#8caca8'].map(c=>new THREE.Color(c));
+      const world=[];
+      for(const [cx,cz,s] of [[-10,-4,.34],[9,-6,.42],[-7,-12,.28],[13,-14,.55],[-16,-16,.48]]){
+        for(let y=0;y<2.3*s;y+=.2)addVoxel(world,cx,y,cz,.18,1);
+        for(let k=0;k<4;k++)for(let y=0;y<2*s;y+=.18){
+          const r=(2.5-k*.43)*s*(1-y/(2*s));
+          for(let a=0;a<TAU;a+=.18/Math.max(r,.15)){
+            addVoxel(world,cx+Math.cos(a)*r,1.2*s+k*1.15*s+y,cz+Math.sin(a)*r,.14,y>.8*s?4:0,.65);
+          }
+        }
+      }
+      for(const [x,z] of [[-8,-.7],[8,-2.8]]){
+        line(world,[x,0,z],[x,3.8,z],.14,.12,1);
+        for(let y=3.5;y<4.1;y+=.12)for(let xx=-.22;xx<.23;xx+=.12)for(let zz=-.22;zz<.23;zz+=.12)addVoxel(world,x+xx,y,z+zz,.10,6,.75,[1,0,0,0]);
+        line(world,[x-.38,4.15,z],[x+.38,4.15,z],.12,.15,1);
+      }
+      const snowmanCenter=[6.8,0,2];
+      for(const [cy,r] of [[.65,.65],[1.5,.44]])for(let y=-r;y<r;y+=.14)for(let x=-r;x<r;x+=.14)for(let z=-r;z<r;z+=.14){
+        const rr=Math.hypot(x,y,z);if(rr<r&&rr>r-.2)addVoxel(world,snowmanCenter[0]+x,cy+y,snowmanCenter[2]+z,.12,4,.85);
+      }
+      for(let x=-.45;x<=.45;x+=.13)for(let z=-.45;z<=.45;z+=.13)if(x*x+z*z<.22)addVoxel(world,6.8+x,1.96,2+z,.12,1);
+      for(let y=2;y<2.35;y+=.12)for(let a=0;a<TAU;a+=.4)addVoxel(world,6.8+Math.cos(a)*.27,y,2+Math.sin(a)*.27,.12,1);
+      for(let a=0;a<TAU;a+=.2)addVoxel(world,6.8+Math.cos(a)*.38,1.17,2+Math.sin(a)*.38,.12,3);
+      addVoxel(world,6.65,1.6,2.4,.075,1);addVoxel(world,6.94,1.6,2.4,.075,1);addVoxel(world,6.8,1.46,2.48,[.1,.1,.3],2);
+      const cabinCenters=[new THREE.Vector3(-8.2,0,-4.5),new THREE.Vector3(8.6,0,-7.4)];
+      for(const [n,c] of cabinCenters.entries()){
+        const scale=n===0?1:.82;
+        const add=(x,y,z,size,slot=1,light=0)=>addVoxel(world,c.x+x*scale,y*scale,c.z+z*scale,size*scale,slot,.85,[light,0,0,0]);
+        for(let y=.12;y<1.9;y+=.17)for(let x=-1.6;x<1.61;x+=.17)for(let z=-1.1;z<1.11;z+=.17){
+          if(Math.abs(x)<1.43&&Math.abs(z)<.94&&y>.17)continue;
+          const window=Math.abs(z-1.1)<.2&&((x>-.95&&x<-.3)||(x>.35&&x<1.0))&&y>.7&&y<1.4;
+          const door=Math.abs(z-1.1)<.2&&Math.abs(x)<.23&&y<1.25;
+          add(x,y,z,.15,window?6:door?0:1,window?1:0);
+        }
+        for(let x=-1.9;x<1.91;x+=.16)for(let z=-1.36;z<1.37;z+=.16){
+          const y=3.12-Math.abs(x)*.67;add(x,y,z,.16,3);add(x,y+.13,z,.13,4);
+        }
+        for(let x=-1.6;x<1.6;x+=.16)for(let y=1.9;y<3.1-Math.abs(x)*.67;y+=.16){add(x,y,-1.1,.145);add(x,y,1.1,.145);}
+        for(let y=2.8;y<3.65;y+=.16)for(let x=.7;x<1.05;x+=.16)for(let z=-.6;z<-.25;z+=.16)add(x,y,z,.145,1);
+        for(let i=0;i<24;i++){const a=i/24*TAU;add(Math.cos(a)*.25,1.5+Math.sin(a)*.25,1.18,.08,0);}
+        add(0,1.22,1.22,.12,3);
+        for(let i=0;i<19;i++){const x=-1.7+i*.19,y=3.14-Math.abs(x)*.67;add(x,y-.16,1.4,.065,i%4===0?3:2,1);}
+      }
+      // A quiet back fence and hanging bulbs connect the small scenes spatially.
+      for(let i=0;i<=24;i++){
+        const a=Math.PI*.08+i/24*Math.PI*.84,r=10.6,x=Math.cos(a)*r,z=-Math.sin(a)*r;
+        line(world,[x,.1,z],[x,.95,z],.16,.10,1);
+        if(i<24){const b=Math.PI*.08+(i+1)/24*Math.PI*.84;line(world,[x,.62,z],[Math.cos(b)*r,.62,-Math.sin(b)*r],.16,.065,1);}
+      }
+      for(const side of [-1,1])for(let j=0;j<70;j++){
+        const q=j/69,x=side*(5.3+q*5.5),y=3.4-.55*Math.sin(q*Math.PI),z=-4.8-q*4;
+        addVoxel(world,x,y,z,.035,1,.65);
+        if(j%5===0)addVoxel(world,x,y-.08,z,.075,2,.8,[1,0,0,0]);
+      }
+      const canopy=[];
+      for(let strand=0;strand<2;strand++)for(let i=0;i<300;i++){
+        const x=-23+i/299*46,z=-10-strand*5,y=24.5+strand*1.8-3.7*Math.sin(i/299*Math.PI);
+        addVoxel(canopy,x,y,z,.035,1,.7);
+        if(i%4===0)addVoxel(canopy,x,y-.08,z,.09,2,1.4,[1,0,0,0]);
+        if(i%38===8){
+          const drop=.75+(i%3)*.25;
+          line(canopy,[x,y,z],[x,y-drop,z],.08,.025,2);
+          for(let j=0;j<20;j++){const a=j/20*TAU,r=.16+.15*Math.abs(Math.cos(a*2));addVoxel(canopy,x+Math.cos(a)*r,y-drop-.3+Math.sin(a)*r,z,.045,2,1.2,[1,0,0,0]);}
+        }
+      }
+      const canopyMesh=voxels(canopy,'WORLD',palette,.48);
+      const worldMesh=voxels(world,'WORLD',worldPal,.08);
+      const trainCars=[];
+      for(let car=0;car<3;car++){
+        const list=[],group=new THREE.Group();scene.add(group);
+        const block=(cx,cy,cz,sx,sy,sz,slot)=>{
+          for(let x=cx-sx/2;x<=cx+sx/2;x+=.13)for(let y=cy-sy/2;y<=cy+sy/2;y+=.13)for(let z=cz-sz/2;z<=cz+sz/2;z+=.13){
+            if(Math.abs(x-cx)<sx/2-.14&&Math.abs(y-cy)<sy/2-.14&&Math.abs(z-cz)<sz/2-.14)continue;
+            addVoxel(list,x,y,z,.115,slot,.85);
+          }
+        };
+        block(0,.36,0,.65,.27,1.25,car===0?3:0);
+        if(car===0){block(0,.74,-.34,.63,.7,.5,3);block(0,1.12,-.34,.79,.12,.65,2);block(0,.62,.31,.46,.35,.6,0);block(0,.96,.48,.18,.42,.18,1);}
+        else {block(0,.7,-.24,.42,.5,.42,car===1?3:2);block(0,.65,.27,.43,.4,.4,car===1?2:3);}
+        for(const side of [-1,1])for(const z of [-.4,.4])for(let i=0;i<14;i++){const a=i/14*TAU;addVoxel(list,side*.38,.24+Math.sin(a)*.17,z+Math.cos(a)*.17,.085,1,.8);}
+        voxels(list,'WORLD',palette,.10,group);trainCars.push(group);
+      }
+      let trainAngle=.4,trainBoostUntil=0,deerGreetUntil=0;
+      // Deer geometry is built in local coordinates, facing +Z. Joints animate on the GPU.
+      const deerGroup=new THREE.Group();scene.add(deerGroup);
+      const deer=[],deerPal=['#bcb69d','#c9bda5','#c79558','#b9614b','#d9d0b7','#d2bea0','#d8be83','#c9b58e'].map(c=>new THREE.Color(c));
+      function ellipsoid(center,radii,part,slot=0) {
+        const step=.095;
+        for(let x=-radii[0];x<=radii[0];x+=step)for(let y=-radii[1];y<=radii[1];y+=step)for(let z=-radii[2];z<=radii[2];z+=step){
+          const q=(x/radii[0])**2+(y/radii[1])**2+(z/radii[2])**2;
+          if(q<=1&&q>.43)addVoxel(deer,center[0]+x,center[1]+y,center[2]+z,.079,slot,.85+random()*.2,[part,random()*6,0,0],[0,1.6,.8]);
+        }
+      }
+      function deerBone(a,b,r,part,lower=false,pivot=a,joint=b,slot=0) {
+        const n=Math.ceil(Math.hypot(...a.map((v,i)=>v-b[i]))/.07);
+        for(let i=0;i<=n;i++){
+          const p=a.map((v,j)=>v+(b[j]-v)*i/n);
+          const offsets=r<.075?[0]:[-r,0,r];
+          for(const xx of offsets)for(const zz of offsets){
+            if(xx*xx+zz*zz<=r*r*1.5)addVoxel(deer,p[0]+xx,p[1],p[2]+zz,.071,slot,1,[part,0,lower?1:0,0],pivot,joint);
+          }
+        }
+      }
+      ellipsoid([0,1.55,0],[.38,.46,1.0],0);
+      ellipsoid([0,1.62,.68],[.39,.53,.46],0);
+      deerBone([0,1.7,.7],[0,2.7,1.1],.2,1);
+      ellipsoid([0,2.75,1.23],[.25,.3,.42],1);
+      ellipsoid([0,2.68,1.59],[.17,.15,.3],1);
+      ellipsoid([0,2.69,1.85],[.10,.10,.10],1,3);
+      for(const side of [-1,1]){
+        deerBone([side*.12,2.93,1.08],[side*.43,3.21,.98],.07,1);
+        const base=[side*.17,2.96,1.09], tip=[side*.65,4.0,.64];
+        deerBone(base,tip,.04,6,false,base,tip,2);
+        for(let k=0;k<3;k++){
+          const a=[side*(.3+k*.12),3.25+k*.23,1-k*.15],b=[side*(.55+k*.18),3.61+k*.23,1.15-k*.12];
+          deerBone(a,b,.035,6,false,base,tip,2);
+        }
+        addVoxel(deer,side*.23,2.82,1.47,.062,1,.2,[1,0,0,0],[0,1.6,.8]);
+      }
+      for(let k=0;k<4;k++){
+        const front=k<2,side=k%2===0?-1:1;
+        const hip=[side*.27,1.5,front?.66:-.68],knee=[side*.3,.79,front?.7:-.91],hoof=[side*.31,.08,front?.86:-.65];
+        deerBone(hip,knee,.075,k+2,false,hip,knee);
+        deerBone(knee,hoof,.045,k+2,true,hip,knee);
+        addVoxel(deer,...hoof,[.14,.16,.23],2,1,[k+2,0,1,0],hip,knee);
+      }
+      deerBone([0,1.7,-.85],[0,1.93,-1.25],.08,7);
+      const deerMesh=voxels(deer,'DEER',deerPal,.13,deerGroup);deerMesh.name='flying-deer';
+      deerGroup.scale.setScalar(.88);
+      const fawnGroup=new THREE.Group();scene.add(fawnGroup);
+      const fawn=deerMesh.clone();fawnGroup.add(fawn);
+      fawnGroup.scale.setScalar(.53);
+      function deerPosition(time,target) {
+        const a=(time-8.5)*.235-.35;
+        target.set(Math.sin(a)*7.1,8.1+Math.sin(a*.72)*3.1,Math.cos(a)*6.6);
+        return a;
+      }
+      function pointField(count,vs,fs,uniforms,spread) {
+        const positions=new Float32Array(count*3),seeds=new Float32Array(count*3);
+        for(let i=0;i<count;i++){positions.set(spread(i),i*3);seeds.set([random(),random(),random()*TAU],i*3);}
+        const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(positions,3));geo.setAttribute('aSeed',new THREE.BufferAttribute(seeds,3));
+        const mesh=new THREE.Points(geo,new THREE.ShaderMaterial({uniforms,vertexShader:$(vs).textContent,fragmentShader:$(fs).textContent,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+        mesh.frustumCulled=false;scene.add(mesh);return mesh;
+      }
+      pointField(400,'sky-vs','sky-fs',{uTime:shared.uTime},()=>{const a=random()*TAU,r=65+random()*20;return [Math.cos(a)*r,8+random()*65,Math.sin(a)*r];});
+      const snow=pointField(mobile?500:950,'snow-vs','snow-fs',{uTime:shared.uTime},()=>[(random()-.5)*54,0,(random()-.5)*45]);
+      const updraft=pointField(180,'updraft-vs','updraft-fs',{uTime:shared.uTime,uRuneOn:shared.uRuneOn,uColor:{value:palette[2]}},()=>{const a=random()*TAU,r=2+random()*5;return [Math.cos(a)*r,0,Math.sin(a)*r];});
+      pointField(45,'lantern-vs','lantern-fs',{uTime:shared.uTime},()=>[(random()-.5)*65,0,-8-random()*28]);
+      const fairyCount=mobile?380:700,fairyGeo=new THREE.BufferGeometry(),fairySeeds=new Float32Array(fairyCount*3);
+      for(let i=0;i<fairyCount;i++)fairySeeds.set([random(),random(),random()],i*3);
+      fairyGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(fairyCount*3),3));
+      fairyGeo.setAttribute('aSeed',new THREE.BufferAttribute(fairySeeds,3));
+      const fairyMaterial=new THREE.ShaderMaterial({
+        uniforms:{uTime:shared.uTime,uT:shared.uT,uJoy:{value:0},uPixelRatio:{value:Math.min(devicePixelRatio,1.5)}},transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+        vertexShader:`attribute vec3 aSeed;uniform float uTime;uniform float uT;uniform float uJoy;uniform float uPixelRatio;varying float vAlpha;varying float vSpark;
+          void main(){float phase=fract(aSeed.x+uTime*(.012+aSeed.y*.008));float y=phase*21.;float a=aSeed.z*6.28318+uTime*.12+y*.18;
+          float r=(4.8+aSeed.y*5.8)*(1.-phase*.28);vec3 p=vec3(cos(a)*r,y,sin(a)*r);
+          p.x+=sin(uTime*.4+aSeed.x*20.)*.25;float fade=sin(phase*3.14159);vSpark=aSeed.y;
+          vAlpha=fade*(.45+.55*pow(.5+.5*sin(uTime*1.5+aSeed.z*40.),4.))*smoothstep(1.,5.,uT)*(1.+uJoy*.6);
+          vec4 mv=modelViewMatrix*vec4(p,1.);gl_PointSize=clamp((2.8+aSeed.y*4.5)*uPixelRatio*38./max(1.,-mv.z),1.,14.);gl_Position=projectionMatrix*mv;}`,
+        fragmentShader:`varying float vAlpha;varying float vSpark;void main(){vec2 p=gl_PointCoord-.5;float d=length(p);if(d>.5)discard;
+          float halo=pow(max(0.,1.-d*2.),3.);float cross=exp(-abs(p.x)*65.)*exp(-abs(p.y)*8.)+exp(-abs(p.y)*65.)*exp(-abs(p.x)*8.);
+          float light=mix(halo,halo+cross*.4,step(.8,vSpark));gl_FragColor=vec4(vec3(1.,.76,.39)*2.,light*vAlpha*.7);}`
+      });
+      const fairies=new THREE.Points(fairyGeo,fairyMaterial);fairies.frustumCulled=false;scene.add(fairies);
+      const capacity=2600, particleGeo=new THREE.BufferGeometry();
+      const positions=new Float32Array(capacity*3),colors=new Float32Array(capacity*3),sizes=new Float32Array(capacity),alphas=new Float32Array(capacity);
+      const life=new Float32Array(capacity),maxLife=new Float32Array(capacity),velocity=new Float32Array(capacity*3);
+      particleGeo.setAttribute('position',new THREE.BufferAttribute(positions,3).setUsage(THREE.DynamicDrawUsage));
+      particleGeo.setAttribute('aColor',new THREE.BufferAttribute(colors,3).setUsage(THREE.DynamicDrawUsage));
+      particleGeo.setAttribute('aSize',new THREE.BufferAttribute(sizes,1).setUsage(THREE.DynamicDrawUsage));
+      particleGeo.setAttribute('aAlpha',new THREE.BufferAttribute(alphas,1).setUsage(THREE.DynamicDrawUsage));
+      const particles=new THREE.Points(particleGeo,new THREE.ShaderMaterial({vertexShader:$('particle-vs').textContent,fragmentShader:$('particle-fs').textContent,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+      particles.frustumCulled=false;scene.add(particles);
+      let particleCursor=0;
+      function emit(pos,vel,color,size=.25,duration=1.8){
+        const i=particleCursor++%capacity;positions.set(pos,i*3);velocity.set(vel,i*3);colors.set([color.r,color.g,color.b],i*3);sizes[i]=size;life[i]=maxLife[i]=duration;alphas[i]=.85;
+      }
+      function burst(pos,count=180){
+        for(let i=0;i<count;i++){const a=random()*TAU,v=1+random()*4;emit(pos,[Math.cos(a)*v,random()*5,Math.sin(a)*v],palette[2],.24+random()*.3,1+random()*1.4);}
+      }
+      let meteors=[],trailAccumulator=0,smokeAccumulator=0,celebrationUntil=0,impactDone=t>=.9,starDone=t>=5.2;
+      function openGift(index){if(t<9.8)return;giftUntil[index]=t+2.8;burst(giftCenters[index].clone().add(new THREE.Vector3(0,.65,0)).toArray(),100);}
+      function celebrate(){
+        if(t<5.2){toast('星星正在点亮');return;}
+        if(t<celebrationUntil-3)return;
+        celebrationUntil=t+5;wish();
+        for(let i=0;i<giftCenters.length;i++){giftUntil[i]=t+2.4+i*.12;burst(giftCenters[i].clone().add(new THREE.Vector3(0,.5,0)).toArray(),55);}
+      }
+      function wish(){if(t<5.2){toast('星星正在点亮');return;} if(meteors.length>=4)return;meteors.push({age:0,start:new THREE.Vector3(-12+random()*24,30,-8),end:new THREE.Vector3(0,H-.1,0)});}
+      function updateParticles(dt){
+        for(let i=0;i<capacity;i++){
+          if(life[i]<=0){alphas[i]=0;continue;}
+          life[i]-=dt;alphas[i]=Math.max(0,life[i]/maxLife[i])*.8;
+          for(let j=0;j<3;j++)positions[i*3+j]+=velocity[i*3+j]*dt;
+          velocity[i*3+1]-=.65*dt;
+        }
+        for(const name of ['position','aColor','aSize','aAlpha'])particleGeo.attributes[name].needsUpdate=true;
+      }
+      // The only 2D drawing is a text mask, sampled into real instanced cubes.
+      let plaque;
+      function updatePlaque(){
+        if(plaque){scene.remove(plaque);plaque.geometry.dispose();plaque.material.dispose();}
+        const canvas=document.createElement('canvas');canvas.width=720;canvas.height=56;
+        const ctx=canvas.getContext('2d');ctx.font='bold 30px monospace';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText($('plaque-input').value,360,38);
+        const pixels=ctx.getImageData(0,0,720,56).data,list=[];
+        for(let y=0;y<56;y+=2)for(let x=0;x<720;x+=2)if(pixels[(y*720+x)*4+3]>128){
+          addVoxel(list,(x-360)*.019,.06,8.9+(y-28)*.026,.029,2,.9,[.7,0,0,0]);
+        }
+        plaque=voxels(list,'RUNE',palette,.17);plaque.visible=plaqueOn;
+      }
+      updatePlaque();
+      function replay(){
+        t=0;impactDone=false;starDone=false;meteors=[];life.fill(0);alphas.fill(0);shared.uPulseT.value=-100;trailAccumulator=0;giftUntil.fill(0);shared.uGiftOpen.value.fill(0);trainBoostUntil=0;deerGreetUntil=0;celebrationUntil=0;
+        lastInteraction=performance.now();
+      }
+      $('replay-btn').onclick=replay;$('fw-btn').onclick=celebrate;
+      $('snow-btn').setAttribute('aria-pressed','true');
+      $('snow-btn').onclick=()=>{snowOn=!snowOn;snow.visible=snowOn;$('snow-btn').classList.toggle('on',snowOn);$('snow-btn').setAttribute('aria-pressed',String(snowOn));};
+      function editPlaque(force){
+        const open=force??!$('plaque-box').classList.contains('open');
+        $('plaque-box').classList.toggle('open',open);$('plaque-box').inert=!open;
+        $('text-btn').setAttribute('aria-expanded',String(open));
+        if(open)$('plaque-input').focus();else $('text-btn').focus();
+      }
+      $('text-btn').setAttribute('aria-expanded','false');$('text-btn').onclick=()=>editPlaque();
+      let plaqueTimer;
+      $('plaque-input').addEventListener('input',()=>{clearTimeout(plaqueTimer);plaqueTimer=setTimeout(updatePlaque,100);});
+      $('plaque-input').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key==='Escape'){e.preventDefault();e.stopPropagation();editPlaque(false);}});
+      $('plaque-eye').onclick=()=>{plaqueOn=!plaqueOn;plaque.visible=plaqueOn;$('plaque-eye').classList.toggle('muted',!plaqueOn);$('plaque-eye').setAttribute('aria-pressed',String(plaqueOn));};
+      $('snap-btn').onclick=()=>{
+        try{composer.render();renderer.domElement.toBlob(blob=>{if(!blob){toast('暂时无法保存画面');return;}const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Winter-Wish.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);},'image/png');}catch{toast('暂时无法保存画面');}
+      };
+      const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2(),activePointers=new Set();let pointerStart=null,multiTouch=false;
+      renderer.domElement.addEventListener('pointerdown',e=>{activePointers.add(e.pointerId);if(activePointers.size>1){multiTouch=true;pointerStart=null;return;}pointerStart={x:e.clientX,y:e.clientY,time:performance.now(),id:e.pointerId};});
+      renderer.domElement.addEventListener('pointercancel',e=>{activePointers.delete(e.pointerId);pointerStart=null;if(activePointers.size===0)multiTouch=false;});
+      renderer.domElement.addEventListener('pointerup',e=>{
+        activePointers.delete(e.pointerId);
+        if(multiTouch){pointerStart=null;if(activePointers.size===0)multiTouch=false;return;}
+        if(!pointerStart||e.pointerId!==pointerStart.id)return;
+        const start=pointerStart;pointerStart=null;
+        if(Math.hypot(e.clientX-start.x,e.clientY-start.y)>7||performance.now()-start.time>550)return;
+        pointer.set(e.clientX/innerWidth*2-1,1-e.clientY/innerHeight*2);raycaster.setFromCamera(pointer,camera);
+        const starPos=new THREE.Vector3();starGroup.getWorldPosition(starPos);
+        const deerHit=deerGroup.position.clone().add(new THREE.Vector3(0,1.5,0));
+        const giftIndex=t>9.8?giftCenters.findIndex(c=>raycaster.ray.distanceToPoint(c)<.85):-1;
+        const trainHit=trainCars.some(car=>raycaster.ray.distanceToPoint(car.position.clone().add(new THREE.Vector3(0,.5,0)))<.75);
+        if(t>5.2&&raycaster.ray.distanceToPoint(starPos)<1.25){celebrate();}
+        else if(t>9.8&&giftIndex>=0)openGift(giftIndex);
+        else if(t>9.8&&trainHit){trainBoostUntil=t+4;burst(trainCars[0].position.toArray(),75);}
+        else if(t>9.8&&raycaster.ray.distanceToPoint(deerHit)<1.7){deerGreetUntil=t+3;burst(deerHit.toArray(),100);}
+        else {
+          const hit=new THREE.Vector3();const intersects=raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0),hit);
+          if(intersects&&plaqueOn&&Math.abs(hit.x)<6&&hit.z>8.1&&hit.z<10.1)editPlaque(true);else wish();
+        }
+      });
+      renderer.domElement.addEventListener('pointermove',e=>{
+        if(e.buttons)return;
+        pointer.set(e.clientX/innerWidth*2-1,1-e.clientY/innerHeight*2);raycaster.setFromCamera(pointer,camera);
+        const hoverStar=t>5.2&&raycaster.ray.distanceToPoint(starGroup.position)<1.25;
+        const hoverGift=t>9.8&&giftCenters.some(c=>raycaster.ray.distanceToPoint(c)<.85);
+        const hoverDeer=t>9.8&&raycaster.ray.distanceToPoint(deerGroup.position.clone().add(new THREE.Vector3(0,1.5,0)))<1.7;
+        const hoverTrain=t>9.8&&trainCars.some(c=>raycaster.ray.distanceToPoint(c.position.clone().add(new THREE.Vector3(0,.5,0)))<.75);
+        renderer.domElement.style.cursor=hoverStar||hoverGift||hoverDeer||hoverTrain?'pointer':'grab';
+      });
+      addEventListener('keydown',e=>{
+        if(e.target.closest('input,textarea,button,[contenteditable="true"]'))return;
+        if(e.code==='Space'){e.preventDefault();replay();}
+        
+        if(e.key==='g'||e.key==='G')openGift(Math.floor(random()*6));
+        if(e.key==='Escape')editPlaque(false);
+      });
+      // A fixed score and audio-clock scheduling prevent random notes and timer drift.
+      let audioContext,master,musicOn=false,musicTimer,nextNote=0,noteIndex=0;
+      const score=[
+        [76,1],[76,1],[76,2],[76,1],[76,1],[76,2],[76,1],[79,1],[72,1.5],[74,.5],[76,4],
+        [77,1],[77,1],[77,1.5],[77,.5],[77,1],[76,1],[76,1],[76,.5],[76,.5],[76,1],[74,1],[74,1],[76,1],[74,2],[79,2],
+        [76,1],[76,1],[76,2],[76,1],[76,1],[76,2],[76,1],[79,1],[72,1.5],[74,.5],[76,4],
+        [77,1],[77,1],[77,1],[77,1],[77,1],[76,1],[76,1],[76,.5],[76,.5],[79,1],[79,1],[77,1],[74,1],[72,4],[0,4]
+      ];
+      function playNote(midi,at,duration){
+        if(!midi)return;
+        const freq=440*Math.pow(2,(midi-69)/12);
+        for(const [ratio,level] of [[1,.19],[2,.035],[3,.009]]){
+          const osc=audioContext.createOscillator(),gain=audioContext.createGain();osc.type='sine';osc.frequency.value=freq*ratio;
+          gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(level,at+.012);gain.gain.exponentialRampToValueAtTime(.0001,at+Math.min(1.7,duration*.85+.25));
+          osc.connect(gain).connect(master);osc.start(at);osc.stop(at+Math.min(1.8,duration+.35));osc.onended=()=>{osc.disconnect();gain.disconnect();};
+        }
+      }
+      function scheduleMusic(){
+        if(!musicOn||document.hidden||audioContext.state!=='running')return;
+        if(nextNote<audioContext.currentTime-.1)nextNote=audioContext.currentTime+.05;
+        while(nextNote<audioContext.currentTime+.25){const [note,beats]=score[noteIndex];playNote(note,nextNote,beats*.36);nextNote+=beats*.36;noteIndex=(noteIndex+1)%score.length;}
+      }
+      $('music-btn').setAttribute('aria-pressed','false');
+      $('music-btn').onclick=async()=>{
+        const button=$('music-btn');button.disabled=true;
+        try{
+          if(!audioContext){audioContext=new (window.AudioContext||window.webkitAudioContext)();master=audioContext.createGain();master.gain.value=.48;master.connect(audioContext.destination);}
+          if(musicOn){musicOn=false;clearInterval(musicTimer);await audioContext.suspend();}
+          else {await audioContext.resume();musicOn=true;if(nextNote===0)nextNote=audioContext.currentTime+.05;scheduleMusic();musicTimer=setInterval(scheduleMusic,70);}
+          button.classList.toggle('on',musicOn);button.setAttribute('aria-pressed',String(musicOn));
+        }catch(error){musicOn=false;clearInterval(musicTimer);button.classList.remove('on');button.setAttribute('aria-pressed','false');toast('这个浏览器暂时无法播放音乐');console.warn(error);}finally{button.disabled=false;}
+      };
+      let resizeTimer;
+      addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);frameCamera();},100);});
+      document.addEventListener('visibilitychange',()=>{
+        lastFrame=performance.now();
+        if(audioContext&&musicOn){if(document.hidden)audioContext.suspend();else audioContext.resume().catch(()=>{});}
+      });
+      const deerNext=new THREE.Vector3(),meteorPos=new THREE.Vector3();
+      function render(now){
+        requestAnimationFrame(render);
+        const dt=Math.min((now-lastFrame)/1000,.05);lastFrame=now;
+        if(document.hidden)return;
+        const delta=paused?0:dt;
+        t+=delta;worldTime+=reduced?0:delta;
+        shared.uTime.value=worldTime;shared.uT.value=t;
+        shared.uScanY.value=-2+clamp((t-1.8)/3.4)*(H+4);
+        shared.uReveal.value=smooth((t-.9)/1.1);shared.uRuneOn.value=smooth((t-.9)/1.1);
+        shared.uAurora.value=clamp((t-5.2)/3.3);shared.uStarFlash.value=Math.max(0,1-(t-5.2)/.9);
+        const mix=paused?1:1-Math.exp(-dt*3.2);palette.forEach((color,i)=>color.lerp(paletteTarget[i],mix));
+        starGroup.visible=t>=5.2;starGroup.scale.setScalar(Math.max(.001,smooth((t-5.2)/.65)));
+        starGroup.rotation.y=Math.atan2(camera.position.x,camera.position.z)+Math.sin(worldTime*.35)*.2;starGroup.rotation.z=Math.sin(worldTime*.45)*.04;flare.quaternion.copy(camera.quaternion);flare.rotateY(-starGroup.rotation.y);
+        rings.forEach((ring,i)=>ring.rotation.y=worldTime*(i%2?-.025:.018));
+        scan.visible=t>1.8&&t<5.35;
+        const scanY=Math.max(0,shared.uScanY.value-.75),scanRadius=Math.max(.5,branchRadius(scanY)+.5);
+        scan.position.y=scanY;scan.scale.setScalar(scanRadius);scan.material.uniforms.uOpacity.value=.55*Math.sin(clamp((t-1.8)/3.55)*Math.PI);
+        worldMesh.visible=t>1.3;canopyMesh.visible=t>1.3;
+        starOrbit.visible=t<celebrationUntil;starOrbit.rotation.y=worldTime*.35;fairyMaterial.uniforms.uJoy.value=smooth((celebrationUntil-t)/2);
+        flare.material.uniforms.uIntensity.value=.58+.08*Math.sin(worldTime*1.2);
+        for(let i=0;i<6;i++)shared.uGiftOpen.value[i]+=((t<giftUntil[i]?1:0)-shared.uGiftOpen.value[i])*(1-Math.exp(-dt*6));
+        trainAngle+=reduced?0:delta*(t<trainBoostUntil?.52:.14);
+        trainCars.forEach((car,i)=>{const angle=trainAngle-i*.16;car.position.set(Math.sin(angle)*9.55,.02,Math.cos(angle)*9.55);car.rotation.y=angle+Math.PI/2;car.visible=t>9.5;car.scale.setScalar(smooth((t-9.5)/1.1));});
+        if(t>9.5&&!reduced){
+          smokeAccumulator+=delta*7;
+          while(smokeAccumulator>=1){smokeAccumulator--;const c=trainCars[0];emit([c.position.x,1.3,c.position.z],[.12,.6,0],new THREE.Color('#748087'),.4,1.4);}
+        }
+        if(!impactDone&&t>=.9){burst([0,.2,0],340);impactDone=true;}
+        if(!starDone&&t>=5.2){burst([0,H-.1,0],100);starDone=true;}
+        if(t<.9){
+          const y=27*(1-Math.pow(clamp(t/.9),2));
+          for(let j=0;j<5;j++)emit([(random()-.5)*.16,y+random()*.65,0],[0,.5,0],palette[2],.3,.45);
+        }
+        deerGroup.visible=t>8.5;fawnGroup.visible=t>9.2;
+        if(fawnGroup.visible){deerPosition(worldTime-1.8,fawnGroup.position);deerPosition(worldTime-1.75,deerNext);fawnGroup.lookAt(deerNext);fawnGroup.position.y-=.9;fawnGroup.scale.setScalar(.53*smooth((t-9.2)/1.2));}
+        if(deerGroup.visible){
+          deerPosition(worldTime,deerGroup.position);deerPosition(worldTime+.05,deerNext);deerGroup.lookAt(deerNext);
+          if(t<deerGreetUntil)deerGroup.rotation.z+=Math.sin((deerGreetUntil-t)*TAU)*.12;
+          deerGroup.scale.setScalar(.88*smooth((t-8.5)/1.2));
+          if(!reduced){trailAccumulator+=delta*110;while(trailAccumulator>=1){trailAccumulator--;emit([deerGroup.position.x+(random()-.5)*.3,deerGroup.position.y+1.2,deerGroup.position.z],[0,-.2,0],palette[2],.25+random()*.25,1.7+random());}}
+        }
+        for(const meteor of meteors){
+          meteor.age+=delta;meteorPos.lerpVectors(meteor.start,meteor.end,clamp(meteor.age/.9));
+          if(delta>0)for(let i=0;i<8;i++)emit([meteorPos.x+(random()-.5)*.18,meteorPos.y+(random()-.5)*.18,meteorPos.z],[0,.4,0],palette[2],.22,.55);
+          if(meteor.age>=.9&&!meteor.hit){meteor.hit=true;shared.uPulseT.value=t;burst(meteor.end.toArray(),180);}
+        }
+        meteors=meteors.filter(m=>m.age<1);
+        updateParticles(delta);finishing.uniforms.uTime.value=worldTime;
+        controls.autoRotate=!reduced&&!paused&&now-lastInteraction>5000;
+        controls.update(delta);composer.render();
+      }
+      requestAnimationFrame(render);
+    } catch(error) {clearTimeout(loadingTimer);fail(error);}
+
+  </script>
+</body>
+</html>
